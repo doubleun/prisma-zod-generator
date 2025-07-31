@@ -307,9 +307,10 @@ export default class Transformer {
       (!isEnum && inputType.namespace === 'prisma');
 
     if (needsLazyLoading) {
+      const typeAnnotation = `: z.ZodType<Prisma.${inputType.type}>`;
       return inputsLength === 1
-        ? `  ${field.name}: z.lazy(() => ${schema})${arr}${opt}`
-        : `z.lazy(() => ${schema})${arr}${opt}`;
+        ? `  ${field.name}: z.lazy(()${typeAnnotation} => ${schema})${arr}${opt}`
+        : `z.lazy(()${typeAnnotation} => ${schema})${arr}${opt}`;
     } else {
       return inputsLength === 1
         ? `  ${field.name}: ${schema}${arr}${opt}`
@@ -338,11 +339,8 @@ export default class Transformer {
     const objectSchema = `${this.generateExportObjectSchemaStatement(
       this.addFinalWrappers({ zodStringFields: zodObjectSchemaFields }),
     )}\n`;
-
     const prismaImportStatement = this.generateImportPrismaStatement();
-
     const json = this.generateJsonSchemaImplementation();
-
     return `${this.generateObjectSchemaImportStatements()}${prismaImportStatement}${json}${objectSchema}`;
   }
 
@@ -355,120 +353,11 @@ export default class Transformer {
         exportName = name.replace('Args', '');
       }
     }
-
     if (isAggregateInputType(name)) {
       name = `${name}Type`;
     }
-
     const end = `export const ${exportName}ObjectSchema = Schema`;
-
-    // Args types like UserArgs, ProfileArgs don't exist in Prisma client
-    // Use generic typing instead of non-existent Prisma type
-    if (name.endsWith('Args')) {
-      return `const Schema: z.ZodType<any> = ${schema};\n\n ${end}`;
-    }
-
-    // For schemas with complex relations, omit explicit typing
-    // to avoid TypeScript inference issues with z.lazy()
-    if (
-      this.hasComplexRelations() &&
-      (name.endsWith('CreateInput') ||
-        name.includes('CreateOrConnect') ||
-        name.includes('CreateNestedOne') ||
-        name.includes('CreateNestedMany'))
-    ) {
-      return `const Schema: z.ZodType<any> = ${schema};\n\n ${end}`;
-    }
-
-    // Check if the Prisma type actually exists before using it
-    // Many filter and input types don't exist in the Prisma client
-    if (this.isPrismaTypeAvailable(name)) {
-      return `const Schema: z.ZodType<Prisma.${name}> = ${schema};\n\n ${end}`;
-    } else {
-      // Fallback to generic schema with explicit any type annotation to avoid TypeScript errors
-      return `const Schema: z.ZodType<any> = ${schema};\n\n ${end}`;
-    }
-  }
-
-  private isPrismaTypeAvailable(name: string): boolean {
-    // Based on analysis of actual Prisma client exports
-    // Only these patterns of types exist in the Prisma namespace:
-
-    // 1. ScalarFieldEnum types (e.g., MySQLUserScalarFieldEnum)
-    if (name.endsWith('ScalarFieldEnum')) {
-      return true;
-    }
-
-    // 2. OrderByRelevanceFieldEnum types (e.g., MySQLUserOrderByRelevanceFieldEnum)
-    if (name.endsWith('OrderByRelevanceFieldEnum')) {
-      return true;
-    }
-
-    // 3. Special built-in types that always exist
-    const builtInTypes = [
-      'JsonNullValueFilter',
-      'JsonNullValueInput',
-      'NullableJsonNullValueInput',
-      'SortOrder',
-      'NullsOrder',
-      'QueryMode',
-      'TransactionIsolationLevel',
-    ];
-    if (builtInTypes.includes(name)) {
-      return true;
-    }
-
-    // 4. Basic operation types that exist (without provider prefix)
-    // Remove provider prefix for checking
-    const nameWithoutProvider = name.replace(
-      /^(MySQL|PostgreSQL|MongoDB|SQLite|SQLServer)/,
-      '',
-    );
-    const basicTypes = [
-      'WhereInput',
-      'OrderByWithRelationInput',
-      'WhereUniqueInput',
-      'CreateInput',
-      'UpdateInput',
-      'UncheckedCreateInput',
-      'UncheckedUpdateInput',
-    ];
-
-    // Check if it's a basic type that should exist
-    if (basicTypes.some((type) => nameWithoutProvider.endsWith(type))) {
-      // But filter types, nested types, and many input envelope types don't exist
-      if (
-        nameWithoutProvider.includes('Filter') ||
-        nameWithoutProvider.includes('Nested') ||
-        nameWithoutProvider.includes('InputEnvelope') ||
-        nameWithoutProvider.includes('FieldUpdateOperations') ||
-        nameWithoutProvider.includes('WithAggregates')
-      ) {
-        return false;
-      }
-      return true;
-    }
-
-    // All other types (especially Filter types, FieldUpdateOperations, etc.) don't exist
-    return false;
-  }
-
-  private hasComplexRelations(): boolean {
-    // Check if this schema has any lazy-loaded relation fields
-    return this.fields.some((field) =>
-      field.inputTypes.some(
-        (inputType) =>
-          inputType.location !== 'enumTypes' &&
-          inputType.namespace === 'prisma' &&
-          typeof inputType.type === 'string' &&
-          inputType.type !== this.name &&
-          (inputType.type.includes('CreateNestedOneWithout') ||
-            inputType.type.includes('CreateNestedManyWithout') ||
-            inputType.type.includes('WhereUniqueInput') ||
-            inputType.type.includes('CreateWithout') ||
-            inputType.type.includes('UncheckedCreateWithout')),
-      ),
-    );
+    return `const Schema = ${schema};\n\n ${end}`;
   }
 
   addFinalWrappers({ zodStringFields }: { zodStringFields: string[] }) {
@@ -521,15 +410,13 @@ export default class Transformer {
 
   generateJsonSchemaImplementation() {
     let jsonSchemaImplementation = '';
-
     if (this.hasJson) {
       jsonSchemaImplementation += `\n`;
       jsonSchemaImplementation += `const literalSchema = z.union([z.string(), z.number(), z.boolean()]);\n`;
-      jsonSchemaImplementation += `const jsonSchema = z.lazy(() =>\n`;
+      jsonSchemaImplementation += `const jsonSchema = z.lazy((): z.ZodType<Prisma.InputJsonValue> =>\n`;
       jsonSchemaImplementation += `  z.union([literalSchema, z.array(jsonSchema.nullable()), z.record(z.string(), jsonSchema.nullable())])\n`;
       jsonSchemaImplementation += `);\n\n`;
     }
-
     return jsonSchemaImplementation;
   }
 
