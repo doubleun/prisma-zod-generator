@@ -826,15 +826,15 @@ export default class Transformer {
     let includeZodSchemaLineLazy = '';
 
     if (Transformer.isGenerateSelect) {
-      const zodSelectObjectSchema = `${modelName}SelectObjectSchema`;
+      const zodSelectObjectSchema = `${modelName}SelectObjectSchema.optional()`;
       selectZodSchemaLine = `select: ${zodSelectObjectSchema},`;
-      selectZodSchemaLineLazy = `select: z.lazy((): z.ZodType<Prisma.${modelName}Select> => ${zodSelectObjectSchema}).optional(),`;
+      selectZodSchemaLineLazy = `select: z.lazy((): z.ZodType<Prisma.${modelName}Select | undefined> => ${zodSelectObjectSchema}).optional(),`;
     }
 
     if (Transformer.isGenerateInclude && hasRelationToAnotherModel) {
-      const zodIncludeObjectSchema = `${modelName}IncludeObjectSchema`;
+      const zodIncludeObjectSchema = `${modelName}IncludeObjectSchema.optional()`;
       includeZodSchemaLine = `include: ${zodIncludeObjectSchema},`;
-      includeZodSchemaLineLazy = `include: z.lazy((): z.ZodType<Prisma.${modelName}Include> => ${zodIncludeObjectSchema}).optional(),`;
+      includeZodSchemaLineLazy = `include: z.lazy((): z.ZodType<Prisma.${modelName}Include | undefined> => ${zodIncludeObjectSchema}).optional(),`;
     }
 
     if (
