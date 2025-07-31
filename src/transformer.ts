@@ -307,9 +307,10 @@ export default class Transformer {
       (!isEnum && inputType.namespace === 'prisma');
 
     if (needsLazyLoading) {
+      const typeAnnotation = `: z.ZodType<Prisma.${inputType.type}>`;
       return inputsLength === 1
-        ? `  ${field.name}: z.lazy(() => ${schema})${arr}${opt}`
-        : `z.lazy(() => ${schema})${arr}${opt}`;
+        ? `  ${field.name}: z.lazy(()${typeAnnotation} => ${schema})${arr}${opt}`
+        : `z.lazy(()${typeAnnotation} => ${schema})${arr}${opt}`;
     } else {
       return inputsLength === 1
         ? `  ${field.name}: ${schema}${arr}${opt}`
@@ -371,7 +372,7 @@ export default class Transformer {
         name.includes('CreateNestedOne') ||
         name.includes('CreateNestedMany'))
     ) {
-      return `const Schema: z.ZodType<any> = ${schema};\n\n ${end}`;
+      return `const Schema = ${schema};\n\n ${end}`;
     }
 
     // Check if the Prisma type actually exists before using it
@@ -521,7 +522,7 @@ export default class Transformer {
     if (this.hasJson) {
       jsonSchemaImplementation += `\n`;
       jsonSchemaImplementation += `const literalSchema = z.union([z.string(), z.number(), z.boolean()]);\n`;
-      jsonSchemaImplementation += `const jsonSchema = z.lazy(() =>\n`;
+      jsonSchemaImplementation += `const jsonSchema = z.lazy((): z.ZodType<Prisma.InputJsonValue> =>\n`;
       jsonSchemaImplementation += `  z.union([literalSchema, z.array(jsonSchema.nullable()), z.record(z.string(), jsonSchema.nullable())])\n`;
       jsonSchemaImplementation += `);\n\n`;
     }
