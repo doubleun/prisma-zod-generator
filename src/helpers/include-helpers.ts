@@ -43,7 +43,7 @@ function generateModelIncludeInputObjectTypes(
             { isList: false, type: 'Boolean', location: 'scalar' },
             {
               isList: false,
-              type: isList ? `${type}FindManyArgs` : `${type}Args`,
+              type: isList ? `${type}FindManyArgs` : `${type}DefaultArgs`,
               location: 'inputObjectTypes',
               namespace: 'prisma',
             },
@@ -70,9 +70,16 @@ function generateModelIncludeInputObjectTypes(
         { isList: false, type: 'Boolean', location: 'scalar' },
       ];
       if (isGenerateSelect) {
-        (inputTypes as Array<{ isList: boolean; type: string; location: string; namespace?: string }>).push({
+        (
+          inputTypes as Array<{
+            isList: boolean;
+            type: string;
+            location: string;
+            namespace?: string;
+          }>
+        ).push({
           isList: false,
-          type: `${modelName}CountOutputTypeArgs`,
+          type: `${modelName}CountOutputTypeDefaultArgs`,
           location: 'inputObjectTypes',
           namespace: 'prisma',
         });

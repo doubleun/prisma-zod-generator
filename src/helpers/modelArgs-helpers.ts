@@ -64,7 +64,7 @@ function generateModelArgsInputObjectTypes(
     }
 
     const modelArgsInputObjectType: DMMF.InputType = {
-      name: `${modelName}Args`,
+      name: `${modelName}DefaultArgs`,
       constraints: {
         maxNumFields: null,
         minNumFields: null,
