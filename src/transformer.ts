@@ -362,12 +362,6 @@ export default class Transformer {
 
     const end = `export const ${exportName}ObjectSchema = Schema`;
 
-    // Args types like UserArgs, ProfileArgs don't exist in Prisma client
-    // Use generic typing instead of non-existent Prisma type
-    if (name.endsWith('Args')) {
-      return `const Schema: z.ZodType<any> = ${schema};\n\n ${end}`;
-    }
-
     // For schemas with complex relations, omit explicit typing
     // to avoid TypeScript inference issues with z.lazy()
     if (
@@ -477,14 +471,16 @@ export default class Transformer {
     return this.wrapWithZodObject(fields) + '.strict()';
   }
 
-  generateImportPrismaStatement() {
+  generateImportPrismaStatement(basePath?: string) {
     let prismaClientImportPath: string;
     if (Transformer.isCustomPrismaClientOutputPath) {
       /**
        * If a custom location was designated for the prisma client, we need to figure out the
        * relative path from {schemas path}/objects to {prismaClientCustomPath}
        */
-      const fromPath = path.join(Transformer.getSchemasPath(), 'objects');
+      const fromPath = basePath
+        ? basePath
+        : path.join(Transformer.getSchemasPath(), 'objects');
       const toPath = Transformer.prismaClientOutputPath as string;
       const relativePathFromOutputToPrismaClient = path
         .relative(fromPath, toPath)
@@ -681,6 +677,7 @@ export default class Transformer {
       const {
         selectImport,
         includeImport,
+        prismaImportStatement,
         selectZodSchemaLine,
         includeZodSchemaLine,
         selectZodSchemaLineLazy,
@@ -698,6 +695,7 @@ export default class Transformer {
             `${modelName}WhereUniqueInputObjectSchema`,
             `./objects/${modelName}WhereUniqueInput.schema`,
           ),
+          prismaImportStatement,
         ];
         await writeFileSafely(
           path.join(Transformer.getSchemasPath(), `${findUnique}.schema.ts`),
@@ -727,6 +725,7 @@ export default class Transformer {
             `${modelName}ScalarFieldEnumSchema`,
             `./enums/${modelName}ScalarFieldEnum.schema`,
           ),
+          prismaImportStatement,
         ];
         await writeFileSafely(
           path.join(Transformer.getSchemasPath(), `${findFirst}.schema.ts`),
@@ -756,6 +755,7 @@ export default class Transformer {
             `${modelName}ScalarFieldEnumSchema`,
             `./enums/${modelName}ScalarFieldEnum.schema`,
           ),
+          prismaImportStatement,
         ];
         await writeFileSafely(
           path.join(Transformer.getSchemasPath(), `${findMany}.schema.ts`),
@@ -780,6 +780,7 @@ export default class Transformer {
             `${modelName}UncheckedCreateInputObjectSchema`,
             `./objects/${modelName}UncheckedCreateInput.schema`,
           ),
+          prismaImportStatement,
         ];
         await writeFileSafely(
           path.join(Transformer.getSchemasPath(), `${createOne}.schema.ts`),
@@ -823,6 +824,7 @@ export default class Transformer {
             `${modelName}WhereUniqueInputObjectSchema`,
             `./objects/${modelName}WhereUniqueInput.schema`,
           ),
+          prismaImportStatement,
         ];
         await writeFileSafely(
           path.join(Transformer.getSchemasPath(), `${deleteOne}.schema.ts`),
@@ -869,6 +871,7 @@ export default class Transformer {
             `${modelName}WhereUniqueInputObjectSchema`,
             `./objects/${modelName}WhereUniqueInput.schema`,
           ),
+          prismaImportStatement,
         ];
         await writeFileSafely(
           path.join(Transformer.getSchemasPath(), `${updateOne}.schema.ts`),
@@ -927,6 +930,7 @@ export default class Transformer {
             `${modelName}UncheckedUpdateInputObjectSchema`,
             `./objects/${modelName}UncheckedUpdateInput.schema`,
           ),
+          prismaImportStatement,
         ];
         await writeFileSafely(
           path.join(Transformer.getSchemasPath(), `${upsertOne}.schema.ts`),
@@ -1081,26 +1085,39 @@ export default class Transformer {
           )
         : '';
 
+    let prismaImportStatement = '';
+
     let selectZodSchemaLine = '';
     let includeZodSchemaLine = '';
     let selectZodSchemaLineLazy = '';
     let includeZodSchemaLineLazy = '';
 
     if (Transformer.isGenerateSelect) {
-      const zodSelectObjectSchema = `${modelName}SelectObjectSchema.optional()`;
+      const zodSelectObjectSchema = `${modelName}SelectObjectSchema`;
       selectZodSchemaLine = `select: ${zodSelectObjectSchema},`;
-      selectZodSchemaLineLazy = `select: z.lazy(() => ${zodSelectObjectSchema}),`;
+      selectZodSchemaLineLazy = `select: z.lazy((): z.ZodType<Prisma.${modelName}Select> => ${zodSelectObjectSchema}).optional(),`;
     }
 
     if (Transformer.isGenerateInclude && hasRelationToAnotherModel) {
-      const zodIncludeObjectSchema = `${modelName}IncludeObjectSchema.optional()`;
+      const zodIncludeObjectSchema = `${modelName}IncludeObjectSchema`;
       includeZodSchemaLine = `include: ${zodIncludeObjectSchema},`;
-      includeZodSchemaLineLazy = `include: z.lazy(() => ${zodIncludeObjectSchema}),`;
+      includeZodSchemaLineLazy = `include: z.lazy((): z.ZodType<Prisma.${modelName}Include> => ${zodIncludeObjectSchema}).optional(),`;
+    }
+
+    if (
+      Transformer.isGenerateSelect ||
+      (Transformer.isGenerateInclude && hasRelationToAnotherModel)
+    ) {
+      // For model schemas, basePath should be the schemas directory, not schemas/objects
+      prismaImportStatement = this.generateImportPrismaStatement(
+        Transformer.getSchemasPath(),
+      );
     }
 
     return {
       selectImport,
       includeImport,
+      prismaImportStatement,
       selectZodSchemaLine,
       includeZodSchemaLine,
       selectZodSchemaLineLazy,
