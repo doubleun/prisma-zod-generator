@@ -382,12 +382,7 @@ export default class Transformer {
       return true;
     }
 
-    // 3. Select and include types (e.g. MySQLUserSelect, MySQLUserInclude)
-    if (name.endsWith('Select') || name.endsWith('Include')) {
-      return true
-    }
-    
-    // 4. Special built-in types that always exist
+    // 3. Special built-in types that always exist
     const builtInTypes = [
       'JsonNullValueFilter',
       'JsonNullValueInput', 
@@ -401,11 +396,13 @@ export default class Transformer {
       return true;
     }
     
-    // 5. Basic operation types that exist (without provider prefix)
+    // 4. Basic operation types that exist (without provider prefix)
     // Remove provider prefix for checking
     const nameWithoutProvider = name.replace(/^(MySQL|PostgreSQL|MongoDB|SQLite|SQLServer)/, '');
     const basicTypes = [
       'Filter',
+      'Select',
+      'Include',
       'WhereInput',
       'OrderByWithRelationInput', 
       'WhereUniqueInput',
