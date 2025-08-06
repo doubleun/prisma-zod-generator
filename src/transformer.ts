@@ -8,10 +8,10 @@ import {
   findModelByName,
   isMongodbRawOp,
 } from './helpers';
-import { isAggregateInputType } from './helpers/aggregate-helpers';
 import { AggregateOperationSupport, TransformerParams } from './types';
 import { writeFileSafely } from './utils/writeFileSafely';
 import { writeIndexFile } from './utils/writeIndexFile';
+import { isAggregateInputType } from './helpers/aggregate-helpers';
 
 export default class Transformer {
   name: string;
@@ -357,31 +357,14 @@ export default class Transformer {
     }
     
     const end = `export const ${exportName}ObjectSchema = Schema`;
-    
-    // Args types like UserArgs, ProfileArgs don't exist in Prisma client
-    // Use generic typing instead of non-existent Prisma type
-    if (name.endsWith('Args')) {
-      return `const Schema: z.ZodType<any> = ${schema};\n\n ${end}`;
-    }
-    
-    // For schemas with complex relations, omit explicit typing
-    // to avoid TypeScript inference issues with z.lazy()
-    if (this.hasComplexRelations() && (
-      name.endsWith('CreateInput') || 
-      name.includes('CreateOrConnect') ||
-      name.includes('CreateNestedOne') ||
-      name.includes('CreateNestedMany')
-    )) {
-      return `const Schema: z.ZodType<any> = ${schema};\n\n ${end}`;
-    }
+
     
     // Check if the Prisma type actually exists before using it
     // Many filter and input types don't exist in the Prisma client
-    if (this.isPrismaTypeAvailable(name)) {
+    if (this.isPrismaTypeAvailable(name) || this.hasComplexRelations()) {
       return `const Schema: z.ZodType<Prisma.${name}> = ${schema};\n\n ${end}`;
     } else {
-      // Fallback to generic schema with explicit any type annotation to avoid TypeScript errors
-      return `const Schema: z.ZodType<any> = ${schema};\n\n ${end}`;
+      return `const Schema = ${schema};\n\n ${end}`;
     }
   }
 
@@ -398,8 +381,13 @@ export default class Transformer {
     if (name.endsWith('OrderByRelevanceFieldEnum')) {
       return true;
     }
+
+    // 3. Select and include types (e.g. MySQLUserSelect, MySQLUserInclude)
+    if (name.endsWith('Select') || name.endsWith('Include')) {
+      return true
+    }
     
-    // 3. Special built-in types that always exist
+    // 4. Special built-in types that always exist
     const builtInTypes = [
       'JsonNullValueFilter',
       'JsonNullValueInput', 
@@ -413,32 +401,28 @@ export default class Transformer {
       return true;
     }
     
-    // 4. Basic operation types that exist (without provider prefix)
+    // 5. Basic operation types that exist (without provider prefix)
     // Remove provider prefix for checking
     const nameWithoutProvider = name.replace(/^(MySQL|PostgreSQL|MongoDB|SQLite|SQLServer)/, '');
     const basicTypes = [
+      'Filter',
       'WhereInput',
       'OrderByWithRelationInput', 
       'WhereUniqueInput',
       'CreateInput',
       'UpdateInput',
       'UncheckedCreateInput',
-      'UncheckedUpdateInput'
+      'UncheckedUpdateInput',
+      'InputEnvelope',
+      'OperationsInput',
+      'AggregatesInput',
     ];
     
     // Check if it's a basic type that should exist
     if (basicTypes.some(type => nameWithoutProvider.endsWith(type))) {
-      // But filter types, nested types, and many input envelope types don't exist
-      if (nameWithoutProvider.includes('Filter') || 
-          nameWithoutProvider.includes('Nested') ||
-          nameWithoutProvider.includes('InputEnvelope') ||
-          nameWithoutProvider.includes('FieldUpdateOperations') ||
-          nameWithoutProvider.includes('WithAggregates')) {
-        return false;
-      }
       return true;
     }
-    
+
     // All other types (especially Filter types, FieldUpdateOperations, etc.) don't exist
     return false;
   }
@@ -466,14 +450,16 @@ export default class Transformer {
     return this.wrapWithZodObject(fields) + '.strict()';
   }
 
-  generateImportPrismaStatement() {
+  generateImportPrismaStatement(basePath?: string) {
     let prismaClientImportPath: string;
     if (Transformer.isCustomPrismaClientOutputPath) {
       /**
        * If a custom location was designated for the prisma client, we need to figure out the
        * relative path from {schemas path}/objects to {prismaClientCustomPath}
        */
-      const fromPath = path.join(Transformer.getSchemasPath(), 'objects');
+      const fromPath = basePath
+        ? basePath
+        : path.join(Transformer.getSchemasPath(), 'objects');
       const toPath = Transformer.prismaClientOutputPath as string;
       const relativePathFromOutputToPrismaClient = path
         .relative(fromPath, toPath)
@@ -510,7 +496,7 @@ export default class Transformer {
     if (this.hasJson) {
       jsonSchemaImplementation += `\n`;
       jsonSchemaImplementation += `const literalSchema = z.union([z.string(), z.number(), z.boolean()]);\n`;
-      jsonSchemaImplementation += `const jsonSchema = z.lazy(() =>\n`;
+      jsonSchemaImplementation += `const jsonSchema = z.lazy((): z.ZodType<Prisma.InputJsonValue> =>\n`;
       jsonSchemaImplementation += `  z.union([literalSchema, z.array(jsonSchema.nullable()), z.record(z.string(), jsonSchema.nullable())])\n`;
       jsonSchemaImplementation += `);\n\n`;
     }
@@ -660,6 +646,7 @@ export default class Transformer {
       const {
         selectImport,
         includeImport,
+        prismaImport,
         selectZodSchemaLine,
         includeZodSchemaLine,
         selectZodSchemaLineLazy,
@@ -673,6 +660,7 @@ export default class Transformer {
         const imports = [
           selectImport,
           includeImport,
+          prismaImport,
           this.generateImportStatement(`${modelName}WhereUniqueInputObjectSchema`, `./objects/${modelName}WhereUniqueInput.schema`),
         ];
         await writeFileSafely(
@@ -690,6 +678,7 @@ export default class Transformer {
         const imports = [
           selectImport,
           includeImport,
+          prismaImport,
           orderByImport,
           this.generateImportStatement(`${modelName}WhereInputObjectSchema`, `./objects/${modelName}WhereInput.schema`),
           this.generateImportStatement(`${modelName}WhereUniqueInputObjectSchema`, `./objects/${modelName}WhereUniqueInput.schema`),
@@ -710,6 +699,7 @@ export default class Transformer {
         const imports = [
           selectImport,
           includeImport,
+          prismaImport,
           orderByImport,
           this.generateImportStatement(`${modelName}WhereInputObjectSchema`, `./objects/${modelName}WhereInput.schema`),
           this.generateImportStatement(`${modelName}WhereUniqueInputObjectSchema`, `./objects/${modelName}WhereUniqueInput.schema`),
@@ -730,6 +720,7 @@ export default class Transformer {
         const imports = [
           selectImport,
           includeImport,
+          prismaImport,
           this.generateImportStatement(`${modelName}CreateInputObjectSchema`, `./objects/${modelName}CreateInput.schema`),
           this.generateImportStatement(`${modelName}UncheckedCreateInputObjectSchema`, `./objects/${modelName}UncheckedCreateInput.schema`),
         ];
@@ -768,6 +759,7 @@ export default class Transformer {
         const imports = [
           selectImport,
           includeImport,
+          prismaImport,
           this.generateImportStatement(`${modelName}WhereUniqueInputObjectSchema`, `./objects/${modelName}WhereUniqueInput.schema`),
         ];
         await writeFileSafely(
@@ -800,6 +792,7 @@ export default class Transformer {
         const imports = [
           selectImport,
           includeImport,
+          prismaImport,
           this.generateImportStatement(`${modelName}UpdateInputObjectSchema`, `./objects/${modelName}UpdateInput.schema`),
           this.generateImportStatement(`${modelName}UncheckedUpdateInputObjectSchema`, `./objects/${modelName}UncheckedUpdateInput.schema`),
           this.generateImportStatement(`${modelName}WhereUniqueInputObjectSchema`, `./objects/${modelName}WhereUniqueInput.schema`),
@@ -835,6 +828,7 @@ export default class Transformer {
         const imports = [
           selectImport,
           includeImport,
+          prismaImport,
           this.generateImportStatement(`${modelName}WhereUniqueInputObjectSchema`, `./objects/${modelName}WhereUniqueInput.schema`),
           this.generateImportStatement(`${modelName}CreateInputObjectSchema`, `./objects/${modelName}CreateInput.schema`),
           this.generateImportStatement(`${modelName}UncheckedCreateInputObjectSchema`, `./objects/${modelName}UncheckedCreateInput.schema`),
@@ -955,6 +949,7 @@ export default class Transformer {
         ? this.generateImportStatement(`${modelName}IncludeObjectSchema`, `./objects/${modelName}Include.schema`)
         : '';
 
+    let prismaImport = '';
     let selectZodSchemaLine = '';
     let includeZodSchemaLine = '';
     let selectZodSchemaLineLazy = '';
@@ -963,18 +958,23 @@ export default class Transformer {
     if (Transformer.isGenerateSelect) {
       const zodSelectObjectSchema = `${modelName}SelectObjectSchema.optional()`;
       selectZodSchemaLine = `select: ${zodSelectObjectSchema},`;
-      selectZodSchemaLineLazy = `select: z.lazy(() => ${zodSelectObjectSchema}),`;
+      selectZodSchemaLineLazy = `select: z.lazy((): z.ZodType<Prisma.${modelName}Select | undefined> => ${zodSelectObjectSchema}).optional(),`;
     }
 
     if (Transformer.isGenerateInclude && hasRelationToAnotherModel) {
       const zodIncludeObjectSchema = `${modelName}IncludeObjectSchema.optional()`;
       includeZodSchemaLine = `include: ${zodIncludeObjectSchema},`;
-      includeZodSchemaLineLazy = `include: z.lazy(() => ${zodIncludeObjectSchema}),`;
+      includeZodSchemaLineLazy = `include: z.lazy((): z.ZodType<Prisma.${modelName}Include | undefined> => ${zodIncludeObjectSchema}).optional(),`;
+    }
+
+    if (Transformer.isGenerateSelect || (Transformer.isGenerateInclude && hasRelationToAnotherModel)) {
+      prismaImport = this.generateImportPrismaStatement(Transformer.getSchemasPath())
     }
 
     return {
       selectImport,
       includeImport,
+      prismaImport,
       selectZodSchemaLine,
       includeZodSchemaLine,
       selectZodSchemaLineLazy,
