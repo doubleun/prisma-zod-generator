@@ -413,6 +413,8 @@ export default class Transformer {
       'InputEnvelope',
       'OperationsInput',
       'AggregatesInput',
+      'WithAggregationInput',
+      'InputType',
     ];
     
     // Check if it's a basic type that should exist
@@ -855,7 +857,7 @@ export default class Transformer {
             this.generateImportStatement(`${modelName}CountAggregateInputObjectSchema`, `./objects/${modelName}CountAggregateInput.schema`),
           );
           aggregateOperations.push(
-            `_count: z.union([ z.literal(true), ${modelName}CountAggregateInputObjectSchema ]).optional()`,
+            `_count: ${modelName}CountAggregateInputObjectSchema.optional()`,
           );
         }
         if (this.aggregateOperationSupport[modelName].min) {
@@ -917,7 +919,7 @@ export default class Transformer {
             imports,
           )}${this.generateExportSchemaStatement(
             `${modelName}GroupBy`,
-            `z.object({ where: ${modelName}WhereInputObjectSchema.optional(), orderBy: z.union([${modelName}OrderByWithAggregationInputObjectSchema, ${modelName}OrderByWithAggregationInputObjectSchema.array()]).optional(), having: ${modelName}ScalarWhereWithAggregatesInputObjectSchema.optional(), take: z.number().optional(), skip: z.number().optional(), by: z.array(${modelName}ScalarFieldEnumSchema)  })`,
+            `z.object({ where: ${modelName}WhereInputObjectSchema.optional(), orderBy: z.union([${modelName}OrderByWithAggregationInputObjectSchema, ${modelName}OrderByWithAggregationInputObjectSchema.array()]), having: ${modelName}ScalarWhereWithAggregatesInputObjectSchema.optional(), take: z.number().optional(), skip: z.number().optional(), by: z.array(${modelName}ScalarFieldEnumSchema)  })`,
           )}`,
         );
       }
