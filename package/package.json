@@ -7,10 +7,10 @@
     "prisma-zod-generator": "lib/generator.js"
   },
   "scripts": {
-    "build": "tsc",
-    "exec": "npm run gen-example && npm run test:features:filtering -- -t \"should handle combinations of model, operation, and field filtering\"",
-    "gen-example": "tsc && npx prisma generate",
-    "gen-example:debug": "tsc && DEBUG_PRISMA_ZOD=1 npx prisma generate",
+    "prepack": "npm run build",
+    "build": "tsc -p tsconfig.json",
+    "gen-example": "tsc && DEBUG=* npx prisma generate",
+    "gen-example-log": "tsc && DEBUG=* npx prisma generate > full-log.txt 2>&1",
     "check-uncommitted": "git diff-index --quiet HEAD --",
     "package:publish": "npm update && npm run check-uncommitted && ./package.sh && cd package && npm publish",
     "test": "vitest | tee generation-output.txt",
@@ -134,6 +134,5 @@
   "bugs": {
     "url": "https://github.com/omar-dulaimi/prisma-zod-generator/issues"
   },
-  "homepage": "https://github.com/omar-dulaimi/prisma-zod-generator#readme",
-  "private": false
+  "homepage": "https://github.com/omar-dulaimi/prisma-zod-generator#readme"
 }
