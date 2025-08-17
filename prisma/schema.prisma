@@ -14,37 +14,168 @@ generator zod {
   isGenerateInclude = true
 }
 
-model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
-  posts Post[]
-  books Book[]
+model Procedure {
+  id         Int     @id @default(autoincrement())
+  active     Boolean @default(false)
+  searchable Boolean @default(true)
+
+  // description field
+  nameTr         Json // ชื่อ 2 ภาษา
+  searchField    String
+  technologyTr   Json // เทคโนโลยีที่ใช้
+  usageTr        Json // ปริมาณที่ใช้
+  resultPeriodTr Json // ระยะเวลาเห็นผล
+  descriptionTr  Json // รายละเอียดบริการ
+  preparationTr  Json // ขั้นตอนเตรียมตัว
+  conditionTr    Json // เงื่อนไข
+  methodOfUseTr  Json // วิธีการใช้งาน
+
+  isTreatedByDoctor Boolean @default(false)
+
+  priority Int @default(0)
+
+  expireType        ExpireType // Date, Duration
+  expireAt          DateTime? // วันที่หมดอายุ
+  expireDurationDay Int? // หมดอายุนับจากวันที่ซื้อ x วัน
+
+  // pricing
+  tagPrice       Float?
+  sellingPrice   Float
+  cost           Float // ต้นทุน
+  commissionRate Float  @default(0)
+
+  // relations
+  partnerId  Int // ref to clinic id
+  branches   Json // สาขาที่ร่วมรายการ[{ id: 1, name: "" }, { id: 2, name: "" }]
+  pictures   ProcedurePicture[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  v2DrugItemId Int?
+
+  procedureReviews       ProcedureReview[]
+  procedureReviewSummary ProcedureReviewSummary?
 }
 
-model Post {
+enum ExpireType {
+  DATE
+  DURATION
+}
+
+model ProcedurePicture {
+  id   Int    @id @default(autoincrement())
+  url  String
+  rank Int    @default(0)
+
+  procedure   Procedure @relation(fields: [procedureId], references: [id])
+  procedureId Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ProcedureReview {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  viewCount Int      @default(0)
-  author    User?    @relation(fields: [authorId], references: [id])
-  authorId  Int?
-  likes     BigInt
-  bytes     Bytes
+
+  procedure   Procedure @relation(fields: [procedureId], references: [id])
+  procedureId Int
+
+  partnerId Int // refs to partner clinic
+
+  overallRating     Int // (rating 1-5)
+  environmentRating Int // (rating 1-5)
+  serviceRating     Int // (rating 1-5)
+  specialtyRating   Int // (rating 1-5)
+  valueRating       Int // (rating 1-5)
+
+  message String?
+
+  orderId     Int // ref to order
+  patientId   Int // ref to reviewer (have to omit this field when review is anonymous)
+  patientName String // keep to display patient's firstname (If anonymous or patient doesn't have firstname, save 'Anonymous')
+  isAnonymous Boolean
+
+  priority Int // calculated ranking of review (have images = 1, have message = 0.5)
+
+  pictures ProcedureReviewPicture[]
+
+  @@index([procedureId])
+  @@index([partnerId])
+  @@index([procedureId, partnerId])
 }
 
-/// @@Gen.model(hide: true)
-model Book {
-  id       Int    @unique
-  title    String
-  author   User?  @relation(fields: [authorId], references: [id])
-  authorId Int?
+model ProcedureReviewPicture {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  url               String
+  procedureReview   ProcedureReview @relation(fields: [procedureReviewId], references: [id])
+  procedureReviewId Int
 }
 
-model Map {
-  key   String @id
-  value String
+model ProcedureReviewSummary {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  procedure   Procedure @relation(fields: [procedureId], references: [id])
+  procedureId Int       @unique
+
+  partnerId Int // refs to partner clinic
+
+  overallRating     Float // (rating 1-5)
+  environmentRating Float // (rating 1-5)
+  serviceRating     Float // (rating 1-5)
+  specialtyRating   Float // (rating 1-5)
+  valueRating       Float // (rating 1-5)
+
+  countForRating5 Int @default(0) // จำนวน review ที่ให้ 5 ดาว
+  countForRating4 Int @default(0) // จำนวน review ที่ให้ 4 ดาว
+  countForRating3 Int @default(0) // จำนวน review ที่ให้ 3 ดาว
+  countForRating2 Int @default(0) // จำนวน review ที่ให้ 2 ดาว
+  countForRating1 Int @default(0) // จำนวน review ที่ให้ 1 ดาว
+
+  // countForReviews Int // จำนวน review ทั้งหมดของ procedure นี้ (ไม่ต้องเก็บแล้ว, ให้เอา count for rating 5 - 1 บวกกัน)
+
+  @@index([partnerId])
 }
+//
+//
+// model User {
+//   id    Int     @id @default(autoincrement())
+//   email String  @unique
+//   name  String?
+//   posts Post[]
+//   books Book[]
+// }
+//
+// model Post {
+//   id            Int      @id @default(autoincrement())
+//   createdAt     DateTime @default(now())
+//   updatedAt     DateTime @updatedAt
+//   titleTr       Json
+//   descriptionTr Json?
+//   content       String?
+//   published     Boolean  @default(false)
+//   viewCount     Int      @default(0)
+//   author        User?    @relation(fields: [authorId], references: [id])
+//   authorId      Int?
+//   likes         BigInt
+//   bytes         Bytes
+// }
+//
+// model Book {
+//   id       Int    @unique
+//   title    String
+//   author   User?  @relation(fields: [authorId], references: [id])
+//   authorId Int?
+// }
+//
+// model Map {
+//   key   String @id
+//   value String
+// }

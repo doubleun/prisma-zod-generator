@@ -857,7 +857,7 @@ export default class Transformer {
             this.generateImportStatement(`${modelName}CountAggregateInputObjectSchema`, `./objects/${modelName}CountAggregateInput.schema`),
           );
           aggregateOperations.push(
-            `_count: ${modelName}CountAggregateInputObjectSchema.optional()`,
+            `_count: z.union([z.literal(true), ${modelName}CountAggregateInputObjectSchema]).optional()`,
           );
         }
         if (this.aggregateOperationSupport[modelName].min) {
