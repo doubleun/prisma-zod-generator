@@ -1,3 +1,54 @@
+## [1.14.0](https://github.com/omar-dulaimi/prisma-zod-generator/compare/v1.13.0...v1.14.0) (2025-08-20)
+
+### 🚀 Features
+
+* **ci:** automate changelog sync in release workflow ([560c806](https://github.com/omar-dulaimi/prisma-zod-generator/commit/560c8060c59b890a3a2defe54a26ca857459f21e))
+
+### 📚 Documentation
+
+* sync changelog to show v1.13.0 as latest version ([04169b7](https://github.com/omar-dulaimi/prisma-zod-generator/commit/04169b74cf45b3c6e678c89f2ea29c13cc403ac1))
+
+## [1.13.0](https://github.com/omar-dulaimi/prisma-zod-generator/compare/v1.12.4...v1.13.0) (2025-08-20)
+
+### 🚀 Features
+
+* add pureModelsExcludeCircularRelations option to resolve issue [#183](https://github.com/omar-dulaimi/prisma-zod-generator/issues/183) ([2627051](https://github.com/omar-dulaimi/prisma-zod-generator/commit/2627051fc581c195058a559f810a3c4168a33cf2))
+
+### 🐛 Bug Fixes
+
+* **linting:** remove non-null assertions from circular dependency detector ([80ab27b](https://github.com/omar-dulaimi/prisma-zod-generator/commit/80ab27bad0958ce4251b4707aa64600999969402))
+* **naming:** respect custom filePattern in import statements for pure models ([ac3b338](https://github.com/omar-dulaimi/prisma-zod-generator/commit/ac3b3384011d84a0d362015c84e50d0e849e114a)), closes [#183](https://github.com/omar-dulaimi/prisma-zod-generator/issues/183) [#183](https://github.com/omar-dulaimi/prisma-zod-generator/issues/183)
+
+## [1.12.4](https://github.com/omar-dulaimi/prisma-zod-generator/compare/v1.12.3...v1.12.4) (2025-08-18)
+
+### 🐛 Bug Fixes
+
+* **groupBy:** restrict _count to literal true or CountAggregateInput (align with Prisma Client) ([c5eaec0](https://github.com/omar-dulaimi/prisma-zod-generator/commit/c5eaec077a8aace9c8b23126549c2fb38bcf3705))
+* **groupBy:** use z.literal(true) for _count in groupBy args (disallow false) ([4f4fc68](https://github.com/omar-dulaimi/prisma-zod-generator/commit/4f4fc68c0539de8034abf1b45a69d58cefec97b9))
+
+## [1.12.3](https://github.com/omar-dulaimi/prisma-zod-generator/compare/v1.12.2...v1.12.3) (2025-08-18)
+
+### ⚠ BREAKING CHANGES
+
+* **args:** align CountArgs and ...AndReturn schemas with Prisma Client
+
+### 🐛 Bug Fixes
+
+* **args:** align CountArgs and ...AndReturn schemas with Prisma Client ([82e5534](https://github.com/omar-dulaimi/prisma-zod-generator/commit/82e5534ce33cc4383815e06e599e6f6812d73ddb))
+
+## [1.12.2](https://github.com/omar-dulaimi/prisma-zod-generator/compare/v1.12.1...v1.12.2) (2025-08-17)
+
+### 🐛 Bug Fixes
+
+* **pure-models:** apply optionalFieldBehavior to schema-optional fields; keep required fields required; address perf flake by documenting run guidance; fix ESLint issues ([32dccaa](https://github.com/omar-dulaimi/prisma-zod-generator/commit/32dccaad866fcb088b9039499f1b7e65e6da8ac6))
+
+## [1.12.1](https://github.com/omar-dulaimi/prisma-zod-generator/compare/v1.12.0...v1.12.1) (2025-08-17)
+
+### 🐛 Bug Fixes
+
+* correct array field handling in Zod schema generation ([4043b64](https://github.com/omar-dulaimi/prisma-zod-generator/commit/4043b64d180b6f336bdadb990ba9d102d6c52f00)), closes [#174](https://github.com/omar-dulaimi/prisma-zod-generator/issues/174)
+* remove unused imports in array-fields test ([1b85c6e](https://github.com/omar-dulaimi/prisma-zod-generator/commit/1b85c6e9234e7863fb761d70f6bcace33f137937))
+
 ## [1.12.0](https://github.com/omar-dulaimi/prisma-zod-generator/compare/v1.11.0...v1.12.0) (2025-08-16)
 
 ### 🚀 Features
